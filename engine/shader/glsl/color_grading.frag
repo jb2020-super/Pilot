@@ -14,10 +14,34 @@ void main()
 {
     highp ivec2 lut_tex_size = textureSize(color_grading_lut_texture_sampler, 0);
     highp float _COLORS      = float(lut_tex_size.y);
+    highp float _COLORSX = float(lut_tex_size.x);
 
-    highp vec4 color       = subpassLoad(in_color).rgba;
+    highp float step = 1.0f / _COLORS;
+
+    highp vec4 color       = subpassLoad(in_color).rgba;    
     
-    // texture(color_grading_lut_texture_sampler, uv)
+    highp float r_idx = clamp(color.r / _COLORS, 0.5f / _COLORSX, (_COLORS - 0.5f) / _COLORSX);
 
-    out_color = color;
+    highp float b_idx = clamp(color.b * _COLORS, 0.5f, _COLORS - 0.0f);
+
+    highp float b_idx_1 = floor(b_idx);
+
+    highp float rate = abs(b_idx_1 + 0.5 - b_idx);
+
+    highp float b_idx_2;    
+    if (b_idx < b_idx_1 + 0.5f ){
+        b_idx_2 = b_idx_1 - 1.0f < 0.0f ? (b_idx_1 + 1.0f) : (b_idx_1 - 1.0f);
+    }else{
+        b_idx_2 = b_idx_1 + 1.0f > (_COLORS - 0.5f) ? (b_idx_1 - 1.0f) : (b_idx_1 + 1.0f);
+    }
+    highp vec2 uv;
+    uv.y = color.g;
+    uv.x = b_idx_1 * step + r_idx;
+    highp vec4 color_sampled_1 = texture(color_grading_lut_texture_sampler, uv);
+
+    uv.x = b_idx_2 * step + r_idx;
+    highp vec4 color_sampled_2 = texture(color_grading_lut_texture_sampler, uv);
+
+    out_color = color_sampled_1 * (1.0f - rate) + color_sampled_2 * rate;
 }
+
